@@ -64,5 +64,36 @@ namespace WordSuggester.dao {
 
             }
         }
+
+        public async Task<Dictionary<T, int>> SearchSubTree(T term, int threshold, CancellationToken ct) {
+            return await Task.Factory.StartNew(() => {
+                Dictionary<T, int> matches = new Dictionary<T, int>();
+                Queue<BKNode<T>> notVisitedNodes = new Queue<BKNode<T>>();
+
+                BKNode<T> visitedNode, child;
+                int distanceFromNode;
+
+                notVisitedNodes.Enqueue(this);
+                while (notVisitedNodes.Count > 0) {
+                    ct.ThrowIfCancellationRequested();
+                    visitedNode = notVisitedNodes.Dequeue();
+
+                    distanceFromNode = Distance<T>.calculate(visitedNode.term, term);
+                //if (distanceFromNode > threshold) continue;
+                    if (distanceFromNode <= threshold)
+                        if (!matches.ContainsKey(visitedNode.term))
+                            matches.Add(visitedNode.term, distanceFromNode);
+
+                    for (int score = distanceFromNode - threshold; score <= threshold + distanceFromNode; score++) {
+                        child = null;
+                        child = visitedNode.children.GetValueOrDefault(score);
+                        if (child != null)
+                            notVisitedNodes.Enqueue(child);
+                    }
+                }
+
+                return matches;
+            });
+        }
     }
 }

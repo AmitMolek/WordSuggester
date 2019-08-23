@@ -18,14 +18,21 @@ namespace WordSuggester {
         Task printInputTask;
         Task printResultTask;
         Task searchObjTask;
+        Task updaterTask;
+
+        Task startTask;
+        Task updateTask;
+        Task drawTask;
 
         SearchObject<string> searchObject;
 
         ManualResetEvent getInputEvent;
         ManualResetEvent searchEvent;
         ManualResetEvent printInputEvent;
+        AutoResetEvent updaterEvent;
 
         ConsoleWriter consoleWriter;
+        ConsoleKeyInfo cki;
 
         const string dictionaryFilePath = "words.txt";
 
@@ -37,6 +44,32 @@ namespace WordSuggester {
             searchEvent = new ManualResetEvent(false);
             printInputEvent = new ManualResetEvent(false);
             consoleWriter = new ConsoleWriter();
+            updaterEvent = new AutoResetEvent(false);
+            cki = new ConsoleKeyInfo();
+
+            startTask = Task.Factory.StartNew(() => { Start(); });
+            Task.WaitAll(startTask);
+        }
+
+        public void Start() {
+            InitBKTree();
+
+            updateTask = Task.Factory.StartNew(() => { while(true) Update(); });
+            drawTask = Task.Factory.StartNew(() => { while(true) Draw(); });
+            Task.WaitAll(updateTask);
+        }
+
+        public void Update() {
+            //Console.WriteLine("Update");
+            GetInputFromConsole(cki);
+        }
+
+        public void Draw() {
+            //Console.WriteLine("Draw");
+            PrintInput();
+            //PrintResult();
+            //consoleWriter.UpdateConsole();
+            consoleWriter.PrintConsole();
         }
 
         public void HandleInput() {
@@ -52,6 +85,7 @@ namespace WordSuggester {
                 printInputTask = Task.Factory.StartNew(() => { PrintInput(); });
                 searchObjTask = Task.Factory.StartNew(() => { StartSearch(); });
                 printResultTask = Task.Factory.StartNew(() => { PrintResult(); });
+                updaterTask = Task.Factory.StartNew(() => { Update(); });
                 tasksToWait.Add(getInputTask);
                 tasksToWait.Add(printInputTask);
                 tasksToWait.Add(printResultTask);
@@ -84,75 +118,61 @@ namespace WordSuggester {
 
         // Prints the new input to the console
         private void PrintInput() {
-            while (true) {
-                printInputEvent.Reset();
-                getInputEvent.WaitOne();
-                //Console.Clear();
-                consoleWriter.ClearList();
-                lock (inputStringLock) {
-                    //Console.WriteLine("Input: {0}", inputString.ToString());
-                    consoleWriter.AddItem(String.Format("Input: {0}\n", inputString.ToString()), true);
-                }
-                consoleWriter.UpdateConsole();
-                printInputEvent.Set();
+            //lock (inputStringLock) {
+            if (Monitor.TryEnter(inputStringLock)) {
+                consoleWriter.AddItem(String.Format("Input: {0}\n", inputString.ToString()), true);
+                Monitor.Exit(inputStringLock);
             }
+            //}
         }
 
         private void StartSearch() {
-            while (true) {
-                searchEvent.Reset();
-                getInputEvent.WaitOne();
-                if (searchObject != null)
-                    searchObject.CancelSearch();
-                searchObject = new SearchObject<string>(bkTree.root);
-                searchObject.StartSearch(inputString.ToString(), inputString.Length);
-                Task.WaitAll(searchObject.waitTask);
-                searchEvent.Set();
-            }
+            if (searchObject != null && searchObject.searchTask.Status == TaskStatus.Running)
+                searchObject.CancelSearch();
+            searchObject = new SearchObject<string>(bkTree.root);
+            searchObject.StartSearch(inputString.ToString(), inputString.Length);
+            Task.WaitAll(searchObject.waitTask);
+        }
+
+        private async void SearchAsync() {
+            await new SearchObject<string>(bkTree.root).StartSearchAsync(inputString.ToString(), inputString.Length);
         }
 
         private void PrintResult() {
-            while (true) {
-                searchEvent.WaitOne();
-                //printInputEvent.WaitOne();
-                List<string> matchesValues = new List<string>();
-                if (searchObject.waitTask.IsCompletedSuccessfully) {
-                    if (searchObject.matches != null)
-                        matchesValues = searchObject.matches.Keys.ToList();
-                }
+            List<string> matchesValues = new List<string>();
+            if (searchObject.waitTask.IsCompletedSuccessfully) {
+                if (searchObject.matches != null)
+                    matchesValues = searchObject.matches.Keys.ToList();
+
                 for (int i = 0; i < 3; i++) {
                     if (i < matchesValues.Count) {
                         string similarTerm = matchesValues[i];
-                        //Console.WriteLine("{1} - {0}", similarTerm, searchObject.input);
                         consoleWriter.AddItem(String.Format("{1} - {0}\n", similarTerm, searchObject.input), false);
                     }
                 }
-                consoleWriter.UpdateConsole();
             }
         }
 
         // Updates the inputString based on the input from the console
         private void GetInputFromConsole(ConsoleKeyInfo cki) {
-            while (true) {
-                if (Console.KeyAvailable)
-                    if (searchObject != null)
-                        searchObject.CancelSearch();
+            if (!Console.KeyAvailable) return;
 
-                getInputEvent.Reset();
-                cki = Console.ReadKey(true);
-                
-                if (cki.Key == ConsoleKey.Delete || cki.Key == ConsoleKey.Backspace) {
-                    lock (inputStringLock) {
-                        if (inputString.Length > 0)
-                            inputString.Remove(inputString.Length - 1, 1);
-                    }
-                } else {
-                    lock (inputStringLock) {
-                        inputString.Append(cki.KeyChar);
-                    }
+            if (searchObject != null)
+                searchObject.CancelSearch();
+
+            cki = Console.ReadKey(true);
+
+            if (cki.Key == ConsoleKey.Delete || cki.Key == ConsoleKey.Backspace) {
+                lock (inputStringLock) {
+                    if (inputString.Length > 0)
+                        inputString.Remove(inputString.Length - 1, 1);
                 }
-                getInputEvent.Set();
+            } else {
+                lock (inputStringLock) {
+                    inputString.Append(cki.KeyChar);
+                }
             }
+            //StartSearch();
         }
 
     }

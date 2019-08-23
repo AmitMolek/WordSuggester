@@ -18,6 +18,7 @@ namespace WordSuggester {
         }
 
         public void UpdateConsole() {
+            //Console.WriteLine("Updating console {0}, {1}, {2}", waitToPrint == null, printTask == null, toPrint.Count);
             if (waitToPrint != null)
                 waitToPrint.Set();
         }
@@ -33,11 +34,18 @@ namespace WordSuggester {
                 toPrint.Clear();
         }
 
+        public void PrintConsole() {
+            Console.Clear();
+            foreach (string item in toPrint) {
+                Console.Write(item);
+            }
+        }
+
         private void StartAgent() {
             printTask = Task.Factory.StartNew(() => {
                 while (true) {
                     waitToPrint.WaitOne();
-                    Console.Clear();
+                    //Console.Clear();
                     foreach (string item in toPrint) {
                         Console.Write(item);
                     }

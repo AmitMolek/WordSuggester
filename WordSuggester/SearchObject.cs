@@ -44,6 +44,15 @@ namespace WordSuggester {
             });
         }
 
+        public Task StartSearchAsync(T input, int threshold) {
+            initSearch(input);
+            searchTask = Task.Factory.StartNew(() => {
+                if (treeRoot != null)
+                    treeRoot.SearchMatches(input, threshold, matches, matchesLock, cts.Token);
+            });
+            return searchTask;
+        }
+
         // Cancels the search
         public void CancelSearch() {
             if (cts != null) {
