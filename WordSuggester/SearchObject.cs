@@ -7,57 +7,48 @@ using WordSuggester.dao;
 
 namespace WordSuggester {
     class SearchObject<T> {
-        BKNode<T> treeRoot;
-        public Task searchTask;
-        public Task waitTask;
+        BKNode<T> bkRoot;
+
+        Task<Dictionary<T, int>> searchTask;
+
         CancellationTokenSource cts;
-        public Dictionary<T, int> matches;
-        public object matchesLock;
-        public T input;
 
-        public SearchObject(BKNode<T> treeRoot) {
-            this.treeRoot = treeRoot;
-        }
-
-        private void initSearch(T input) {
-            this.input = input;
+        public SearchObject(BKNode<T> root) {
+            bkRoot = root;
             cts = new CancellationTokenSource();
-            matches = new Dictionary<T, int>();
-            matchesLock = new object();
         }
 
-        public void StartSearch(T input, int threshold) {
-            if (searchTask != null) {
-                if (cts != null)
-                    cts.Cancel();
-
-                while (!searchTask.IsCompleted && !waitTask.IsCompleted) ;
-            }
-
-            waitTask = Task.Factory.StartNew(() => {
-                initSearch(input);
-                searchTask = Task.Factory.StartNew(() => {
-                    if (treeRoot != null)
-                        treeRoot.SearchMatches(input, threshold, matches, matchesLock, cts.Token);
-                });
-                Task.WaitAll(searchTask);
-            });
-        }
-
-        public Task StartSearchAsync(T input, int threshold) {
-            initSearch(input);
-            searchTask = Task.Factory.StartNew(() => {
-                if (treeRoot != null)
-                    treeRoot.SearchMatches(input, threshold, matches, matchesLock, cts.Token);
-            });
+        public Task<Dictionary<T, int>> GetSearchTask() {
             return searchTask;
+        }
+
+        public void InitSearch() {
+            if (searchTask != null)
+                if (!searchTask.IsCompleted) {
+                    CancelSearch();
+                    searchTask.Wait();
+                }
+        }
+
+        public void StartSearch(T searchTerm, int threshold) {
+            InitSearch();
+            searchTask = bkRoot.SearchSubTree(searchTerm, threshold, cts.Token);
+        }
+
+        public async Task<Dictionary<T, int>> GetSearchResultAsync() {
+            try {
+                if (searchTask != null && searchTask.Status != TaskStatus.Canceled)
+                    return await searchTask;
+            } catch (OperationCanceledException oce) {
+                Console.WriteLine("oPeRaTiOn CaNcElEd");
+            }
+            return new Dictionary<T, int>();
         }
 
         // Cancels the search
         public void CancelSearch() {
-            if (cts != null) {
+            if (cts != null && !cts.IsCancellationRequested)
                 cts.Cancel();
-            }
         }
     }
 }
