@@ -75,7 +75,8 @@ namespace WordSuggester.dao {
 
                 notVisitedNodes.Enqueue(this);
                 while (notVisitedNodes.Count > 0) {
-                    ct.ThrowIfCancellationRequested();
+                    if (ct.IsCancellationRequested)
+                        break;
                     visitedNode = notVisitedNodes.Dequeue();
 
                     distanceFromNode = Distance<T>.calculate(visitedNode.term, term);

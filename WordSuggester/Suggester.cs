@@ -72,10 +72,12 @@ namespace WordSuggester {
             Console.WriteLine("Input: {0}", inputHandler.GetInputString());
             Dictionary<string, int> searchResult;
             searchQueue.TryGetResult(out searchResult);
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 10; i++) {
                 if (i < searchResult.Keys.Count)
                     Console.WriteLine("     - {0}", searchResult.Keys.ToList()[i]);
             }
+            if (searchResult.Keys.Count > 0)
+                Console.WriteLine("     - ...");
 
         }
 

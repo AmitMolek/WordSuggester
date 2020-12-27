@@ -42,7 +42,9 @@ namespace WordSuggester {
         }
 
         public bool IsSearchDone() {
-            return (waitTask.IsCompleted);
+            if (waitTask != null)
+                return (waitTask.IsCompleted);
+            return true;
         }
 
         public void CancelSearch() {
