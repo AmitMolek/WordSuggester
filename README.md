@@ -5,6 +5,6 @@ Uses .NET Task Parallel Library (TPL) for multi-threaded operation. Based on [Le
 # Examples
 Currently the program will present you with 10 similar words (yep I know, the front-end needs an uplift).
 
-![Dictionary loading](docs/imgs/loading_dictionary.jpg)
-![Hello results](docs/imgs/hello_10_results.jpg)
-![Cycle results](docs/imgs/cycle_10_results.jpg)
+![Dictionary loading](WordSuggester/docs/imgs/loading_dictionary.jpg?raw=true)  
+![Hello results](WordSuggester/docs/imgs/hello_10_results.jpg?raw=true)  
+![Cycle results](WordSuggester/docs/imgs/cycle_10_results.jpg?raw=true)  
